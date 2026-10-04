@@ -2,7 +2,7 @@ const express = require("express");
 const path = require("path");
 const cookieParser = require("cookie-parser");
 const {connectToMongoDB} = require('./connect');
-const {restrictToLoggedinUserOnly, checkAuth} = require("./middleware/auth")
+const { checkForAuthentication, restrictTo } = require("./middleware/auth")
 const URL = require("./models/url");
 
 
@@ -24,9 +24,10 @@ app.set("views", path.resolve("./views"));
 app.use(express.json());
 app.use(express.urlencoded({extended : false}))
 app.use(cookieParser());
+app.use(checkForAuthentication)
 
-app.use("/url", restrictToLoggedinUserOnly, urlRouter);
-app.use("/",checkAuth, staticRoute);
+app.use("/url", restrictTo(["NORMAL", "ADMIN"]), urlRouter);
+app.use("/", staticRoute);
 app.use("/user", userRoute)
 
 app.get("/:shortId", async (req, res) => {
@@ -39,8 +40,9 @@ app.get("/:shortId", async (req, res) => {
         timestamp: Date.now()
       }
     }
-  })
+  });
 
+  if (!entry) return res.status(404).send("URL not found");
   res.redirect(entry.redirectUrl);
 })
 
